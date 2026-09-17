@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha 360 - Gestión Integral de Flotas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="h-full antialiased text-gray-900 flex flex-col">
+
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-sm">360</div>
+                <div>
+                    <h1 class="text-base font-bold text-gray-900 leading-tight">Ficha 360 Operational Dashboard</h1>
+                    <p class="text-xs text-gray-500">Mantenimiento, Telemetría Satelital & Combustible</p>
+                </div>
+            </div>
+            <button onclick="sincronizarTodo()" class="inline-flex items-center px-3.5 py-2 border border-transparent text-xs font-semibold rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Actualizar Datos
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Flota</p>
+                <p id="kpi-total" class="text-2xl font-bold text-gray-900 mt-1 font-mono-code">--</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-emerald-500">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Unidades OK</p>
+                <p id="kpi-ok" class="text-2xl font-bold text-emerald-600 mt-1 font-mono-code">--</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-amber-500">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Próximas a Service</p>
+                <p id="kpi-proximo" class="text-2xl font-bold text-amber-600 mt-1 font-mono-code">--</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-rose-500">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Service Vencido</p>
+                <p id="kpi-critico" class="text-2xl font-bold text-rose-600 mt-1 font-mono-code">--</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="relative w-full sm:w-72">
+                    <input type="text" id="buscador" oninput="filtrarTabla()" placeholder="Buscar por patente..." class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <select id="filtro-estado" onchange="filtrarTabla()" class="text-xs bg-white border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="TODOS">Todos los estados</option>
+                    <option value="CRITICO">Crítico (Vencido)</option>
+                    <option value="PROXIMO">Próximo Service</option>
+                    <option value="OK">OK</option>
+                </select>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead class="bg-gray-50 text-gray-500 font-semibold uppercase tracking-wider">
+                        <tr>
+                            <th class="px-5 py-3 text-left">Estado</th>
+                            <th class="px-5 py-3 text-left">Patente</th>
+                            <th class="px-5 py-3 text-left">Odómetro Total</th>
+                            <th class="px-5 py-3 text-left">Recorrido Mes</th>
+                            <th class="px-5 py-3 text-left">Consumo Prom.</th>
+                            <th class="px-5 py-3 text-left">Post-Service</th>
+                            <th class="px-5 py-3 text-left">Fuente</th>
+                            <th class="px-5 py-3 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Ficha 360 -->
+    <div id="modal-ficha" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-gray-100">
+            <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-base font-bold">Ficha 360 Unificada</h3>
+                    <p class="text-xs text-gray-400">Patente: <span id="f-patente" class="text-indigo-400 font-mono-code font-bold">--</span></p>
+                </div>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
+                    <h4 class="font-bold text-gray-700 uppercase tracking-wider text-[11px] border-b border-gray-200 pb-1">Mantenimiento</h4>
+                    <div class="flex justify-between"><span class="text-gray-500">Último Service:</span><span id="f-service-km" class="font-mono-code font-semibold text-gray-800">-- km</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Recorrido Post-Service:</span><span id="f-recorrido" class="font-mono-code font-bold text-indigo-600">-- km</span></div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
+                    <h4 class="font-bold text-gray-700 uppercase tracking-wider text-[11px] border-b border-gray-200 pb-1">Telemetría GPS</h4>
+                    <div class="flex justify-between"><span class="text-gray-500">Odómetro Acumulado:</span><span id="f-odometro" class="font-mono-code font-semibold text-gray-800">-- km</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Recorrido del Mes:</span><span id="f-km-mes" class="font-mono-code font-semibold text-indigo-700">-- km</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Fuente Origen:</span><span id="f-fuente" class="font-semibold text-gray-700">--</span></div>
+                </div>
+
+                <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-2 md:col-span-2">
+                    <h4 class="font-bold text-indigo-900 uppercase tracking-wider text-[11px] border-b border-indigo-100 pb-1">Rendimiento de Combustible</h4>
+                    <!-- Modificado a 3 columnas (grid-cols-3) -->
+                    <div class="grid grid-cols-3 gap-4 pt-1">
+                        <div>
+                            <span class="text-gray-500 block text-[10px]">Litros Cargados</span>
+                            <span id="f-litros" class="text-lg font-bold font-mono-code text-blue-700">-- L</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block text-[10px]">Consumo Promedio</span>
+                            <span id="f-consumo" class="text-lg font-bold font-mono-code text-indigo-700">-- L/100km</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block text-[10px]">Rendimiento Estimado</span>
+                            <span id="f-rendimiento" class="text-lg font-bold font-mono-code text-emerald-700">-- km/L</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let datosCompletos = [];
+
+        async function cargarDatos() {
+            const res = await fetch('/api/tablero-alertas');
+            datosCompletos = await res.json();
+            
+            document.getElementById('kpi-total').innerText = datosCompletos.length;
+            document.getElementById('kpi-ok').innerText = datosCompletos.filter(x => x.estado_semaforo === 'OK').length;
+            document.getElementById('kpi-proximo').innerText = datosCompletos.filter(x => x.estado_semaforo === 'PROXIMO').length;
+            document.getElementById('kpi-critico').innerText = datosCompletos.filter(x => x.estado_semaforo === 'CRITICO').length;
+
+            filtrarTabla();
+        }
+
+        function filtrarTabla() {
+            const busqueda = document.getElementById('buscador').value.toUpperCase();
+            const estado = document.getElementById('filtro-estado').value;
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '';
+
+            const filtrados = datosCompletos.filter(u => {
+                return u.patente.includes(busqueda) && (estado === 'TODOS' || u.estado_semaforo === estado);
+            });
+
+            filtrados.forEach(u => {
+                let badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OK</span>';
+                if (u.estado_semaforo === 'CRITICO') badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">VENCIDO</span>';
+                else if (u.estado_semaforo === 'PROXIMO') badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">PRÓXIMO</span>';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-5 py-3.5">${badge}</td>
+                        <td class="px-5 py-3.5 font-bold font-mono-code text-gray-900">${u.patente}</td>
+                        <td class="px-5 py-3.5 font-mono-code text-gray-700">${u.km_actuales_gps.toLocaleString('es-AR')} km</td>
+                        <td class="px-5 py-3.5 font-mono-code font-semibold text-indigo-700">${u.km_recorridos_mes.toLocaleString('es-AR')} km</td>
+                        <td class="px-5 py-3.5 font-mono-code font-bold text-indigo-600">
+                            ${u.consumo_l100km ? u.consumo_l100km + ' L/100km' : '<span class="text-gray-400 font-normal">S/D</span>'}
+                        </td>
+                        <td class="px-5 py-3.5 font-mono-code text-gray-700">${u.km_recorridos_post_service.toLocaleString('es-AR')} km</td>
+                        <td class="px-5 py-3.5 text-gray-500">${u.fuente_gps}</td>
+                        <td class="px-5 py-3.5 text-right">
+                            <button onclick="verFicha('${u.patente}')" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">Ver Ficha</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function sincronizarTodo() {
+            await cargarDatos();
+        }
+
+        async function verFicha(patente) {
+            const res = await fetch(`/api/unidades/${patente}/ficha-360`);
+            const data = await res.json();
+
+            document.getElementById('f-patente').innerText = data.patente;
+            document.getElementById('f-service-km').innerText = `${data.mantenimiento.ultimo_service_km.toLocaleString('es-AR')} km`;
+            document.getElementById('f-recorrido').innerText = `${data.mantenimiento.km_recorridos.toLocaleString('es-AR')} km`;
+            document.getElementById('f-odometro').innerText = `${data.telemetria.odometro_actual.toLocaleString('es-AR')} km`;
+            document.getElementById('f-km-mes').innerText = `${data.telemetria.km_recorridos_mes.toLocaleString('es-AR')} km`;
+            document.getElementById('f-fuente').innerText = data.telemetria.fuente;
+
+            const consumo = data.telemetria.consumo_l100km;
+            const litros = data.telemetria.litros_mes; // Lectura del nuevo dato
+
+            // Mostrar Litros
+            if (litros) {
+                document.getElementById('f-litros').innerText = `${litros.toLocaleString('es-AR')} L`;
+            } else {
+                document.getElementById('f-litros').innerText = 'Sin Datos';
+            }
+
+            // Mostrar Consumo y Rendimiento
+            if (consumo) {
+                document.getElementById('f-consumo').innerText = `${consumo} L/100km`;
+                document.getElementById('f-rendimiento').innerText = `${(100 / consumo).toFixed(2)} km/L`;
+            } else {
+                document.getElementById('f-consumo').innerText = 'Sin Datos';
+                document.getElementById('f-rendimiento').innerText = 'Sin Datos';
+            }
+
+            document.getElementById('modal-ficha').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-ficha').classList.add('hidden');
+        }
+
+        cargarDatos();
+    </script>
+</body>
+</html>
