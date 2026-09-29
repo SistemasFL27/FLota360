@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de flota — Ficha 360</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+        #mapa { height: min(72vh, 720px); min-height: 360px; width: 100%; }
+        .leaflet-popup-content { font-size: 12px; margin: 10px 12px; }
+    </style>
+</head>
+<body class="h-full antialiased text-gray-900 flex flex-col">
+
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-sm">360</div>
+                <div>
+                    <h1 class="text-base font-bold text-gray-900 leading-tight">Mapa de flota</h1>
+                    <p class="text-xs text-gray-500">Última posición GPS · YPF Ruta</p>
+                </div>
+                <nav class="hidden sm:flex items-center ml-4 text-xs font-semibold">
+                    <a href="/" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Tablero</a>
+                    <span class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700">Mapa</span>
+                </nav>
+            </div>
+            <a href="/" class="sm:hidden text-xs font-semibold text-indigo-600">Tablero</a>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+        <div id="banner-error" class="hidden bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl px-4 py-3"></div>
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <input type="text" id="buscador" oninput="aplicarFiltros()" placeholder="Buscar patente..." class="w-full sm:w-64 pl-3 pr-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <select id="filtro-estado" onchange="aplicarFiltros()" class="text-xs bg-white border border-gray-300 rounded-lg px-3 py-1.5">
+                    <option value="TODOS">Todos los estados</option>
+                    <option value="CRITICO">Crítico</option>
+                    <option value="PROXIMO">Próximo</option>
+                    <option value="OK">OK</option>
+                </select>
+            </div>
+            <p id="mapa-resumen" class="text-xs text-gray-500">Cargando posiciones…</p>
+        </div>
+        <div class="flex flex-wrap gap-3 text-[11px] text-gray-600">
+            <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>OK</span>
+            <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>Próximo service</span>
+            <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>Service vencido</span>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div id="mapa"></div>
+        </div>
+        <p id="mapa-vacio" class="hidden text-sm text-gray-500 text-center py-6">No hay unidades con coordenadas para este filtro.</p>
+    </main>
+
+    <div id="modal-ficha" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[2000]">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+            <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-base font-bold">Ficha 360</h3>
+                    <p class="text-xs text-gray-400">Patente: <span id="f-patente" class="text-indigo-400 font-mono-code font-bold">--</span></p>
+                </div>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="bg-gray-50 p-4 rounded-xl border space-y-2">
+                    <div class="flex justify-between"><span class="text-gray-500">Odómetro</span><span id="f-odometro" class="font-mono-code font-semibold">--</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Post-service</span><span id="f-recorrido" class="font-mono-code font-semibold text-indigo-600">--</span></div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl border space-y-2">
+                    <div class="flex justify-between"><span class="text-gray-500">Posición</span><span id="f-coords" class="font-mono-code">--</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Fuente</span><span id="f-fuente">--</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+        const COLORES = { OK: '#10b981', PROXIMO: '#f59e0b', CRITICO: '#f43f5e' };
+        let unidades = [];
+        let mapa;
+        let cluster;
+        const marcadores = {};
+        let focoPendiente = new URLSearchParams(location.search).get('patente');
+
+        function colorEstado(estado) {
+            return COLORES[estado] || '#6366f1';
+        }
+
+        function icono(estado) {
+            const color = colorEstado(estado);
+            return L.divIcon({
+                className: '',
+                html: `<div style="width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 0 0 1px ${color}"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8],
+            });
+        }
+
+        function tieneGpsValido(u) {
+            const lat = Number(u.latitud);
+            const lon = Number(u.longitud);
+            return Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0);
+        }
+
+        function unidadesFiltradas() {
+            const q = document.getElementById('buscador').value.toUpperCase();
+            const estado = document.getElementById('filtro-estado').value;
+            return unidades.filter(u => {
+                const matchQ = !q || u.patente.includes(q);
+                const matchE = estado === 'TODOS' || u.estado_semaforo === estado;
+                return tieneGpsValido(u) && matchQ && matchE;
+            });
+        }
+
+        function aplicarFiltros() {
+            if (!cluster) return;
+            cluster.clearLayers();
+            const filtradas = unidadesFiltradas();
+            Object.keys(marcadores).forEach(k => delete marcadores[k]);
+            filtradas.forEach(u => {
+                const marker = L.marker([u.latitud, u.longitud], { icon: icono(u.estado_semaforo) });
+                const unidadTxt = [u.marca, u.modelo].filter(Boolean).join(' ') || 'Sin modelo';
+                const fecha = u.fecha_lectura ? new Date(u.fecha_lectura).toLocaleString('es-AR') : 'Sin fecha';
+                marker.bindPopup(`
+                    <div class="space-y-1">
+                        <p class="font-bold font-mono">${u.patente}</p>
+                        <p>${unidadTxt}</p>
+                        <p>${u.empresa || ''}</p>
+                        <p>${(u.km_actuales_gps || 0).toLocaleString('es-AR')} km · ${u.estado_semaforo}</p>
+                        <p class="text-gray-500">${fecha}</p>
+                        <button onclick="verFicha('${u.patente}')" class="text-indigo-600 font-semibold">Ver ficha</button>
+                    </div>
+                `);
+                cluster.addLayer(marker);
+                marcadores[u.patente] = marker;
+            });
+            const sinGps = unidades.filter(u => !tieneGpsValido(u)).length;
+            document.getElementById('mapa-resumen').innerText =
+                sinGps ? `${filtradas.length} unidades en mapa · ${sinGps} sin posición` : `${filtradas.length} unidades en mapa`;
+            document.getElementById('mapa-vacio').classList.toggle('hidden', filtradas.length > 0);
+            if (filtradas.length && !mapa.hasLayer(cluster)) {
+                cluster.addTo(mapa);
+            }
+            const patenteFoco = focoPendiente ? focoPendiente.toUpperCase() : null;
+            const markerFoco = patenteFoco ? marcadores[patenteFoco] : null;
+            if (markerFoco) {
+                cluster.zoomToShowLayer(markerFoco, () => {
+                    mapa.setView(markerFoco.getLatLng(), 14, { animate: false });
+                    markerFoco.openPopup();
+                });
+                focoPendiente = null;
+            } else if (filtradas.length) {
+                mapa.fitBounds(cluster.getBounds().pad(0.12), { animate: false });
+                if (patenteFoco) {
+                    document.getElementById('mapa-resumen').innerText =
+                        `No hay posición GPS para ${patenteFoco}`;
+                    focoPendiente = null;
+                }
+            }
+        }
+
+        async function cargarMapa() {
+            try {
+                const res = await fetch('/api/tablero-alertas');
+                if (!res.ok) throw new Error('No se pudieron leer las posiciones');
+                unidades = await res.json();
+                if (focoPendiente) {
+                    document.getElementById('buscador').value = focoPendiente.toUpperCase();
+                }
+                aplicarFiltros();
+            } catch (err) {
+                document.getElementById('banner-error').innerText = 'No se pudo cargar el mapa. Revisá que el servidor esté en marcha.';
+                document.getElementById('banner-error').classList.remove('hidden');
+                document.getElementById('mapa-resumen').innerText = 'Sin datos';
+            }
+        }
+
+        async function verFicha(patente) {
+            document.getElementById('modal-ficha').classList.remove('hidden');
+            const res = await fetch(`/api/unidades/${patente}/ficha-360`);
+            if (!res.ok) return;
+            const data = await res.json();
+            document.getElementById('f-patente').innerText = data.patente;
+            document.getElementById('f-odometro').innerText = `${data.telemetria.odometro_actual.toLocaleString('es-AR')} km`;
+            document.getElementById('f-recorrido').innerText = `${data.mantenimiento.km_recorridos.toLocaleString('es-AR')} km`;
+            document.getElementById('f-fuente').innerText = data.telemetria.fuente;
+            document.getElementById('f-coords').innerText =
+                data.telemetria.latitud != null ? `${data.telemetria.latitud}, ${data.telemetria.longitud}` : 'Sin GPS';
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-ficha').classList.add('hidden');
+        }
+
+        mapa = L.map('mapa').setView([-34.6, -58.4], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap',
+        }).addTo(mapa);
+        cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48 });
+        cargarMapa();
+    </script>
+</body>
+</html>

@@ -19,17 +19,33 @@
                 <div class="h-9 w-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-sm">360</div>
                 <div>
                     <h1 class="text-base font-bold text-gray-900 leading-tight">Ficha 360 Operational Dashboard</h1>
-                    <p class="text-xs text-gray-500">Mantenimiento, Telemetría Satelital & Combustible</p>
+                    <p class="text-xs text-gray-500">Mantenimiento, Telemetría Satelital &amp; Combustible</p>
                 </div>
+                <nav class="hidden sm:flex items-center ml-4 text-xs font-semibold">
+                    <span class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700">Tablero</span>
+                    <a href="/mapa" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100">Mapa</a>
+                </nav>
             </div>
-            <button onclick="sincronizarTodo()" class="inline-flex items-center px-3.5 py-2 border border-transparent text-xs font-semibold rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition">
-                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Actualizar Datos
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="sincronizarYpf()" id="btn-ypf" class="inline-flex items-center px-3.5 py-2 border border-indigo-200 text-xs font-semibold rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition">
+                    Sincronizar YPF Ruta
+                </button>
+                <button onclick="sincronizarYpfGps()" id="btn-ypf-gps" class="inline-flex items-center px-3.5 py-2 border border-indigo-200 text-xs font-semibold rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 transition">
+                    Bajar GPS y odómetros
+                </button>
+                <button onclick="cargarDatos()" class="inline-flex items-center px-3.5 py-2 border border-transparent text-xs font-semibold rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Actualizar Datos
+                </button>
+            </div>
         </div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <div id="banner-error" class="hidden bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl px-4 py-3"></div>
+        <div id="banner-ok" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3"></div>
+        <p id="ypf-estado" class="text-xs text-gray-500"></p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
@@ -70,6 +86,7 @@
                         <tr>
                             <th class="px-5 py-3 text-left">Estado</th>
                             <th class="px-5 py-3 text-left">Patente</th>
+                            <th class="px-5 py-3 text-left">Unidad</th>
                             <th class="px-5 py-3 text-left">Odómetro Total</th>
                             <th class="px-5 py-3 text-left">Recorrido Mes</th>
                             <th class="px-5 py-3 text-left">Consumo Prom.</th>
@@ -85,22 +102,25 @@
         </div>
     </main>
 
-    <!-- Modal Ficha 360 -->
     <div id="modal-ficha" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-gray-100">
             <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
                 <div>
                     <h3 class="text-base font-bold">Ficha 360 Unificada</h3>
                     <p class="text-xs text-gray-400">Patente: <span id="f-patente" class="text-indigo-400 font-mono-code font-bold">--</span></p>
+                    <p id="f-unidad" class="text-xs text-gray-400 mt-0.5"></p>
                 </div>
                 <button onclick="cerrarModal()" class="text-gray-400 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            
+
+            <div id="ficha-error" class="hidden mx-6 mt-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg px-3 py-2"></div>
+
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
                     <h4 class="font-bold text-gray-700 uppercase tracking-wider text-[11px] border-b border-gray-200 pb-1">Mantenimiento</h4>
                     <div class="flex justify-between"><span class="text-gray-500">Último Service:</span><span id="f-service-km" class="font-mono-code font-semibold text-gray-800">-- km</span></div>
                     <div class="flex justify-between"><span class="text-gray-500">Recorrido Post-Service:</span><span id="f-recorrido" class="font-mono-code font-bold text-indigo-600">-- km</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Orden:</span><span id="f-ot" class="font-mono-code font-semibold text-gray-800">--</span></div>
                 </div>
 
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
@@ -108,11 +128,11 @@
                     <div class="flex justify-between"><span class="text-gray-500">Odómetro Acumulado:</span><span id="f-odometro" class="font-mono-code font-semibold text-gray-800">-- km</span></div>
                     <div class="flex justify-between"><span class="text-gray-500">Recorrido del Mes:</span><span id="f-km-mes" class="font-mono-code font-semibold text-indigo-700">-- km</span></div>
                     <div class="flex justify-between"><span class="text-gray-500">Fuente Origen:</span><span id="f-fuente" class="font-semibold text-gray-700">--</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Última posición:</span><span id="f-coords" class="font-mono-code font-semibold text-gray-800">--</span></div>
                 </div>
 
                 <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-2 md:col-span-2">
                     <h4 class="font-bold text-indigo-900 uppercase tracking-wider text-[11px] border-b border-indigo-100 pb-1">Rendimiento de Combustible</h4>
-                    <!-- Modificado a 3 columnas (grid-cols-3) -->
                     <div class="grid grid-cols-3 gap-4 pt-1">
                         <div>
                             <span class="text-gray-500 block text-[10px]">Litros Cargados</span>
@@ -134,17 +154,116 @@
 
     <script>
         let datosCompletos = [];
+        let cargando = false;
+
+        function mostrarError(mensaje) {
+            const banner = document.getElementById('banner-error');
+            banner.innerText = mensaje;
+            banner.classList.remove('hidden');
+        }
+
+        function ocultarError() {
+            document.getElementById('banner-error').classList.add('hidden');
+            document.getElementById('banner-ok').classList.add('hidden');
+        }
+
+        function mostrarOk(mensaje) {
+            const banner = document.getElementById('banner-ok');
+            banner.innerText = mensaje;
+            banner.classList.remove('hidden');
+        }
+
+        async function chequearYpf() {
+            try {
+                const res = await fetch('/api/ypf/estado');
+                const data = await res.json();
+                const el = document.getElementById('ypf-estado');
+                if (data.configurado) {
+                    const cache = data.token_en_cache ? ' · token Auth0 en cache 24h' : '';
+                    el.innerText = `YPF Ruta listo (${data.api_base} · ${data.dominio}/${data.subdominio}${cache})`;
+                } else if (data.token_lw_configurado) {
+                    el.innerText = 'Token Location World cargado. Faltan las credenciales MAG YPF (client, secret, scope, usuario y clave) para abrir la session.';
+                } else {
+                    el.innerText = 'YPF Ruta sin configurar. Completá Location World y MAG YPF en el .env.';
+                }
+            } catch (err) {
+                document.getElementById('ypf-estado').innerText = '';
+            }
+        }
+
+        async function sincronizarYpf() {
+            const btn = document.getElementById('btn-ypf');
+            btn.disabled = true;
+            btn.innerText = 'Sincronizando…';
+            ocultarError();
+            try {
+                const res = await fetch('/api/sincronizar-ypf', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'No se pudo sincronizar YPF Ruta');
+                }
+                mostrarOk(`YPF Ruta: ${data.unidades_nuevas} nuevas, ${data.unidades_actualizadas} actualizadas, ${data.con_gps} con GPS.`);
+                await cargarDatos();
+            } catch (err) {
+                mostrarError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Sincronizar YPF Ruta';
+            }
+        }
+
+        async function sincronizarYpfGps() {
+            const btn = document.getElementById('btn-ypf-gps');
+            btn.disabled = true;
+            btn.innerText = 'Bajando GPS…';
+            ocultarError();
+            try {
+                const res = await fetch('/api/sincronizar-ypf-gps', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'No se pudo bajar GPS/odómetro');
+                }
+                mostrarOk(`GPS/odómetro: ${data.con_gps} con posición, ${data.con_odometro} con odómetro, de ${data.unidades} unidades.`);
+                await cargarDatos();
+            } catch (err) {
+                mostrarError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Bajar GPS y odómetros';
+            }
+        }
+
+        function filaEstado(html) {
+            return `<tr><td colspan="9" class="px-5 py-10 text-center text-gray-500">${html}</td></tr>`;
+        }
 
         async function cargarDatos() {
-            const res = await fetch('/api/tablero-alertas');
-            datosCompletos = await res.json();
-            
-            document.getElementById('kpi-total').innerText = datosCompletos.length;
-            document.getElementById('kpi-ok').innerText = datosCompletos.filter(x => x.estado_semaforo === 'OK').length;
-            document.getElementById('kpi-proximo').innerText = datosCompletos.filter(x => x.estado_semaforo === 'PROXIMO').length;
-            document.getElementById('kpi-critico').innerText = datosCompletos.filter(x => x.estado_semaforo === 'CRITICO').length;
+            const tbody = document.getElementById('tabla-body');
+            cargando = true;
+            tbody.innerHTML = filaEstado('Cargando flota…');
+            ocultarError();
+            try {
+                const res = await fetch('/api/tablero-alertas');
+                if (!res.ok) throw new Error('No se pudo leer el tablero de alertas');
+                datosCompletos = await res.json();
 
-            filtrarTabla();
+                document.getElementById('kpi-total').innerText = datosCompletos.length;
+                document.getElementById('kpi-ok').innerText = datosCompletos.filter(x => x.estado_semaforo === 'OK').length;
+                document.getElementById('kpi-proximo').innerText = datosCompletos.filter(x => x.estado_semaforo === 'PROXIMO').length;
+                document.getElementById('kpi-critico').innerText = datosCompletos.filter(x => x.estado_semaforo === 'CRITICO').length;
+
+                filtrarTabla();
+            } catch (err) {
+                datosCompletos = [];
+                document.getElementById('kpi-total').innerText = '--';
+                document.getElementById('kpi-ok').innerText = '--';
+                document.getElementById('kpi-proximo').innerText = '--';
+                document.getElementById('kpi-critico').innerText = '--';
+                mostrarError('No se pudo conectar con el servidor. Revisá que FastAPI esté en ejecución.');
+                tbody.innerHTML = filaEstado('Error al cargar las unidades.');
+            } finally {
+                cargando = false;
+            }
         }
 
         function filtrarTabla() {
@@ -153,19 +272,32 @@
             const tbody = document.getElementById('tabla-body');
             tbody.innerHTML = '';
 
+            if (!datosCompletos.length && !cargando) {
+                tbody.innerHTML = filaEstado('No hay unidades cargadas. Ejecutá <code class="font-mono-code">python seed_demo.py</code> o sincronizá YPF Ruta.');
+                return;
+            }
+
             const filtrados = datosCompletos.filter(u => {
                 return u.patente.includes(busqueda) && (estado === 'TODOS' || u.estado_semaforo === estado);
             });
+
+            if (!filtrados.length) {
+                tbody.innerHTML = filaEstado('Ninguna unidad coincide con el filtro.');
+                return;
+            }
 
             filtrados.forEach(u => {
                 let badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">OK</span>';
                 if (u.estado_semaforo === 'CRITICO') badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">VENCIDO</span>';
                 else if (u.estado_semaforo === 'PROXIMO') badge = '<span class="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">PRÓXIMO</span>';
 
+                const unidadTxt = [u.marca, u.modelo].filter(Boolean).join(' ') || '<span class="text-gray-400 font-normal">S/D</span>';
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-5 py-3.5">${badge}</td>
                         <td class="px-5 py-3.5 font-bold font-mono-code text-gray-900">${u.patente}</td>
+                        <td class="px-5 py-3.5 text-gray-700">${unidadTxt}</td>
                         <td class="px-5 py-3.5 font-mono-code text-gray-700">${u.km_actuales_gps.toLocaleString('es-AR')} km</td>
                         <td class="px-5 py-3.5 font-mono-code font-semibold text-indigo-700">${u.km_recorridos_mes.toLocaleString('es-AR')} km</td>
                         <td class="px-5 py-3.5 font-mono-code font-bold text-indigo-600">
@@ -174,6 +306,7 @@
                         <td class="px-5 py-3.5 font-mono-code text-gray-700">${u.km_recorridos_post_service.toLocaleString('es-AR')} km</td>
                         <td class="px-5 py-3.5 text-gray-500">${u.fuente_gps}</td>
                         <td class="px-5 py-3.5 text-right">
+                            <a href="/mapa?patente=${u.patente}" class="text-gray-500 hover:text-indigo-700 font-semibold text-xs mr-2">Mapa</a>
                             <button onclick="verFicha('${u.patente}')" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">Ver Ficha</button>
                         </td>
                     </tr>
@@ -181,47 +314,51 @@
             });
         }
 
-        async function sincronizarTodo() {
-            await cargarDatos();
-        }
-
         async function verFicha(patente) {
-            const res = await fetch(`/api/unidades/${patente}/ficha-360`);
-            const data = await res.json();
-
-            document.getElementById('f-patente').innerText = data.patente;
-            document.getElementById('f-service-km').innerText = `${data.mantenimiento.ultimo_service_km.toLocaleString('es-AR')} km`;
-            document.getElementById('f-recorrido').innerText = `${data.mantenimiento.km_recorridos.toLocaleString('es-AR')} km`;
-            document.getElementById('f-odometro').innerText = `${data.telemetria.odometro_actual.toLocaleString('es-AR')} km`;
-            document.getElementById('f-km-mes').innerText = `${data.telemetria.km_recorridos_mes.toLocaleString('es-AR')} km`;
-            document.getElementById('f-fuente').innerText = data.telemetria.fuente;
-
-            const consumo = data.telemetria.consumo_l100km;
-            const litros = data.telemetria.litros_mes; // Lectura del nuevo dato
-
-            // Mostrar Litros
-            if (litros) {
-                document.getElementById('f-litros').innerText = `${litros.toLocaleString('es-AR')} L`;
-            } else {
-                document.getElementById('f-litros').innerText = 'Sin Datos';
-            }
-
-            // Mostrar Consumo y Rendimiento
-            if (consumo) {
-                document.getElementById('f-consumo').innerText = `${consumo} L/100km`;
-                document.getElementById('f-rendimiento').innerText = `${(100 / consumo).toFixed(2)} km/L`;
-            } else {
-                document.getElementById('f-consumo').innerText = 'Sin Datos';
-                document.getElementById('f-rendimiento').innerText = 'Sin Datos';
-            }
-
+            document.getElementById('ficha-error').classList.add('hidden');
             document.getElementById('modal-ficha').classList.remove('hidden');
+            try {
+                const res = await fetch(`/api/unidades/${patente}/ficha-360`);
+                if (!res.ok) throw new Error('Unidad no encontrada');
+                const data = await res.json();
+
+                document.getElementById('f-patente').innerText = data.patente;
+                document.getElementById('f-unidad').innerText = [data.marca, data.modelo, data.empresa].filter(Boolean).join(' · ');
+                document.getElementById('f-service-km').innerText = `${data.mantenimiento.ultimo_service_km.toLocaleString('es-AR')} km`;
+                document.getElementById('f-recorrido').innerText = `${data.mantenimiento.km_recorridos.toLocaleString('es-AR')} km`;
+                document.getElementById('f-ot').innerText = data.mantenimiento.orden_numero || 'Sin OT';
+                document.getElementById('f-odometro').innerText = `${data.telemetria.odometro_actual.toLocaleString('es-AR')} km`;
+                document.getElementById('f-km-mes').innerText = `${data.telemetria.km_recorridos_mes.toLocaleString('es-AR')} km`;
+                document.getElementById('f-fuente').innerText = data.telemetria.fuente;
+                if (data.telemetria.latitud != null && data.telemetria.longitud != null) {
+                    document.getElementById('f-coords').innerText = `${data.telemetria.latitud}, ${data.telemetria.longitud}`;
+                } else {
+                    document.getElementById('f-coords').innerText = 'Sin GPS';
+                }
+
+                const consumo = data.telemetria.consumo_l100km;
+                const litros = data.telemetria.litros_mes;
+
+                document.getElementById('f-litros').innerText = litros ? `${litros.toLocaleString('es-AR')} L` : 'Sin Datos';
+
+                if (consumo) {
+                    document.getElementById('f-consumo').innerText = `${consumo} L/100km`;
+                    document.getElementById('f-rendimiento').innerText = `${(100 / consumo).toFixed(2)} km/L`;
+                } else {
+                    document.getElementById('f-consumo').innerText = 'Sin Datos';
+                    document.getElementById('f-rendimiento').innerText = 'Sin Datos';
+                }
+            } catch (err) {
+                document.getElementById('ficha-error').innerText = 'No se pudo abrir la ficha de esta unidad.';
+                document.getElementById('ficha-error').classList.remove('hidden');
+            }
         }
 
         function cerrarModal() {
             document.getElementById('modal-ficha').classList.add('hidden');
         }
 
+        chequearYpf();
         cargarDatos();
     </script>
 </body>
